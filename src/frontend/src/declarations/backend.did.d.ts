@@ -10,6 +10,21 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
+export interface Album {
+  'id' : bigint,
+  'owner' : Principal,
+  'name' : string,
+  'description' : string,
+  'imageIds' : Array<bigint>,
+  'passwordHash' : string,
+  'isPublic' : boolean,
+}
+export interface AlbumInput {
+  'password' : string,
+  'name' : string,
+  'description' : string,
+  'isPublic' : boolean,
+}
 export interface Comment {
   'id' : bigint,
   'authorUsername' : string,
@@ -78,10 +93,14 @@ export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'addComment' : ActorMethod<[bigint, string], undefined>,
   'addFavorite' : ActorMethod<[bigint], undefined>,
+  'addImageToAlbum' : ActorMethod<[bigint, bigint], undefined>,
   'approveImage' : ActorMethod<[bigint], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'changeRole' : ActorMethod<[Principal, UserRole], undefined>,
+  'createAlbum' : ActorMethod<[AlbumInput], bigint>,
+  'deleteAlbum' : ActorMethod<[bigint], undefined>,
   'deleteImage' : ActorMethod<[bigint], undefined>,
+  'getAlbum' : ActorMethod<[bigint, string], Album>,
   'getAllUsers' : ActorMethod<[], Array<User>>,
   'getCallerProfile' : ActorMethod<[], User>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
@@ -90,8 +109,10 @@ export interface _SERVICE {
   'getFavorites' : ActorMethod<[], Array<bigint>>,
   'getImage' : ActorMethod<[bigint], Image>,
   'getPendingReview' : ActorMethod<[], Array<Image>>,
+  'getPublicAlbums' : ActorMethod<[], Array<Album>>,
   'getPublicGallery' : ActorMethod<[], Array<Image>>,
   'getPublicUserProfile' : ActorMethod<[Principal], [] | [PublicUserProfile]>,
+  'getUserAlbums' : ActorMethod<[Principal], Array<Album>>,
   'getUserImages' : ActorMethod<[Principal], Array<Image>>,
   'getUserLikedImages' : ActorMethod<[], Array<bigint>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
@@ -102,8 +123,10 @@ export interface _SERVICE {
   'registerUser' : ActorMethod<[string, string], undefined>,
   'rejectImage' : ActorMethod<[bigint], undefined>,
   'removeFavorite' : ActorMethod<[bigint], undefined>,
+  'removeImageFromAlbum' : ActorMethod<[bigint, bigint], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'unlikeImage' : ActorMethod<[bigint], undefined>,
+  'updateAlbum' : ActorMethod<[bigint, AlbumInput], undefined>,
   'updateProfile' : ActorMethod<[string, string], undefined>,
   'uploadImage' : ActorMethod<
     [string, Array<string>, string, ExternalBlob],

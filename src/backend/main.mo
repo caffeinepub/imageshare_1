@@ -10,9 +10,7 @@ import Storage "blob-storage/Storage";
 import MixinStorage "blob-storage/Mixin";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
-import Migration "migration";
 
-(with migration = Migration.run)
 actor {
   let accessControlState = AccessControl.initState();
   include MixinStorage();
@@ -62,6 +60,16 @@ actor {
     totalLikesReceived : Nat;
   };
 
+  public type Album = {
+    id : Nat;
+    owner : Principal;
+    name : Text;
+    description : Text;
+    isPublic : Bool;
+    passwordHash : Text;
+    imageIds : [Nat];
+  };
+
   let images = Map.empty<Nat, Image>();
   var nextImageId = 0;
 
@@ -70,6 +78,8 @@ actor {
   let userFavorites = Map.empty<Principal, [Nat]>();
   let comments = Map.empty<Nat, Comment>();
   var nextCommentId = 0;
+  let albums = Map.empty<Nat, Album>();
+  var nextAlbumId = 1;
 
   func getUserInternal(caller : Principal) : User {
     switch (users.get(caller)) {
@@ -325,10 +335,7 @@ actor {
   };
 
   public shared ({ caller }) func incrementDownloads(imageId : Nat) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can increment downloads");
-    };
-
+    // No authorization check - allow anonymous download tracking per spec
     switch (images.get(imageId)) {
       case (null) { Runtime.trap("Image does not exist") };
       case (?image) {
@@ -600,5 +607,150 @@ actor {
         };
       };
     };
+  };
+
+  // Album/Collection Features
+
+  public type AlbumInput = {
+    name : Text;
+    description : Text;
+    isPublic : Bool;
+    password : Text;
+  };
+
+  public shared ({ caller }) func createAlbum(input : AlbumInput) : async Nat {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Must be logged-in to create albums");
+    };
+    let album : Album = {
+      id = nextAlbumId;
+      owner = caller;
+      name = input.name;
+      description = input.description;
+      isPublic = input.isPublic;
+      passwordHash = input.password;
+      imageIds = [];
+    };
+    albums.add(nextAlbumId, album);
+    nextAlbumId += 1;
+    nextAlbumId - 1;
+  };
+
+  public shared ({ caller }) func updateAlbum(albumId : Nat, input : AlbumInput) : async () {
+    switch (albums.get(albumId)) {
+      case (null) { Runtime.trap("Album does not exist") };
+      case (?album) {
+        // Owner only - no admin override per spec
+        if (caller != album.owner) {
+          Runtime.trap("Unauthorized: Only album owner can update");
+        };
+        let updatedAlbum : Album = {
+          id = album.id;
+          owner = album.owner;
+          name = input.name;
+          description = input.description;
+          isPublic = input.isPublic;
+          passwordHash = input.password;
+          imageIds = album.imageIds;
+        };
+        albums.add(albumId, updatedAlbum);
+      };
+    };
+  };
+
+  public shared ({ caller }) func deleteAlbum(albumId : Nat) : async () {
+    switch (albums.get(albumId)) {
+      case (null) { Runtime.trap("Album does not exist") };
+      case (?album) {
+        if (caller != album.owner and not AccessControl.isAdmin(accessControlState, caller)) {
+          Runtime.trap("Unauthorized: Only album owner or admin can delete");
+        };
+        albums.remove(albumId);
+      };
+    };
+  };
+
+  public shared ({ caller }) func addImageToAlbum(albumId : Nat, imageId : Nat) : async () {
+    switch (albums.get(albumId)) {
+      case (null) { Runtime.trap("Album does not exist") };
+      case (?album) {
+        if (caller != album.owner) {
+          Runtime.trap("Unauthorized: Only album owner can add images");
+        };
+        if (album.imageIds.find(func(id) { id == imageId }) != null) {
+          Runtime.trap("Image already in album");
+        };
+        let updatedImages = album.imageIds.concat([imageId]);
+        let updatedAlbum : Album = {
+          id = album.id;
+          owner = album.owner;
+          name = album.name;
+          description = album.description;
+          isPublic = album.isPublic;
+          passwordHash = album.passwordHash;
+          imageIds = updatedImages;
+        };
+        albums.add(albumId, updatedAlbum);
+      };
+    };
+  };
+
+  public shared ({ caller }) func removeImageFromAlbum(albumId : Nat, imageId : Nat) : async () {
+    switch (albums.get(albumId)) {
+      case (null) { Runtime.trap("Album does not exist") };
+      case (?album) {
+        if (caller != album.owner) {
+          Runtime.trap("Unauthorized: Only album owner can remove images");
+        };
+        let filteredImages = album.imageIds.filter(func(id) { id != imageId });
+        let updatedAlbum : Album = {
+          id = album.id;
+          owner = album.owner;
+          name = album.name;
+          description = album.description;
+          isPublic = album.isPublic;
+          passwordHash = album.passwordHash;
+          imageIds = filteredImages;
+        };
+        albums.add(albumId, updatedAlbum);
+      };
+    };
+  };
+
+  public query ({ caller }) func getAlbum(albumId : Nat, password : Text) : async Album {
+    switch (albums.get(albumId)) {
+      case (null) { Runtime.trap("Album does not exist") };
+      case (?album) {
+        // Authorization: public OR owner OR admin OR correct password
+        if (album.isPublic or caller == album.owner or AccessControl.isAdmin(accessControlState, caller) or password == album.passwordHash) {
+          return album;
+        } else {
+          Runtime.trap("Unauthorized: Album is private and password does not match");
+        };
+      };
+    };
+  };
+
+  public query ({ caller }) func getUserAlbums(user : Principal) : async [Album] {
+    let userAlbums = List.empty<Album>();
+    let albumsArray = albums.toArray();
+    for ((id, album) in albumsArray.values()) {
+      // Return public albums of user, or all albums if caller is the owner or admin
+      if (album.owner == user and (album.isPublic or caller == user or AccessControl.isAdmin(accessControlState, caller))) {
+        userAlbums.add(album);
+      };
+    };
+    userAlbums.reverse().toArray();
+  };
+
+  public query ({ caller }) func getPublicAlbums() : async [Album] {
+    let publicAlbums = List.empty<Album>();
+    let albumsArray = albums.toArray();
+    for ((id, album) in albumsArray.values()) {
+      if (album.isPublic) {
+        publicAlbums.add(album);
+      };
+    };
+    publicAlbums.reverse().toArray();
   };
 };

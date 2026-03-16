@@ -14,6 +14,15 @@ export class ExternalBlob {
     static fromBytes(blob: Uint8Array<ArrayBuffer>): ExternalBlob;
     withUploadProgress(onProgress: (percentage: number) => void): ExternalBlob;
 }
+export interface Album {
+    id: bigint;
+    owner: Principal;
+    name: string;
+    description: string;
+    imageIds: Array<bigint>;
+    passwordHash: string;
+    isPublic: boolean;
+}
 export interface PublicUserProfile {
     bio: string;
     username: string;
@@ -47,6 +56,12 @@ export interface Image {
     approved: boolean;
     downloads: bigint;
 }
+export interface AlbumInput {
+    password: string;
+    name: string;
+    description: string;
+    isPublic: boolean;
+}
 export interface UserProfile {
     bio: string;
     username: string;
@@ -59,10 +74,14 @@ export enum UserRole {
 export interface backendInterface {
     addComment(imageId: bigint, text: string): Promise<void>;
     addFavorite(imageId: bigint): Promise<void>;
+    addImageToAlbum(albumId: bigint, imageId: bigint): Promise<void>;
     approveImage(imageId: bigint): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     changeRole(userId: Principal, newRole: UserRole): Promise<void>;
+    createAlbum(input: AlbumInput): Promise<bigint>;
+    deleteAlbum(albumId: bigint): Promise<void>;
     deleteImage(imageId: bigint): Promise<void>;
+    getAlbum(albumId: bigint, password: string): Promise<Album>;
     getAllUsers(): Promise<Array<User>>;
     getCallerProfile(): Promise<User>;
     getCallerUserProfile(): Promise<UserProfile | null>;
@@ -71,8 +90,10 @@ export interface backendInterface {
     getFavorites(): Promise<Array<bigint>>;
     getImage(imageId: bigint): Promise<Image>;
     getPendingReview(): Promise<Array<Image>>;
+    getPublicAlbums(): Promise<Array<Album>>;
     getPublicGallery(): Promise<Array<Image>>;
     getPublicUserProfile(user: Principal): Promise<PublicUserProfile | null>;
+    getUserAlbums(user: Principal): Promise<Array<Album>>;
     getUserImages(user: Principal): Promise<Array<Image>>;
     getUserLikedImages(): Promise<Array<bigint>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
@@ -83,8 +104,10 @@ export interface backendInterface {
     registerUser(username: string, bio: string): Promise<void>;
     rejectImage(imageId: bigint): Promise<void>;
     removeFavorite(imageId: bigint): Promise<void>;
+    removeImageFromAlbum(albumId: bigint, imageId: bigint): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     unlikeImage(imageId: bigint): Promise<void>;
+    updateAlbum(albumId: bigint, input: AlbumInput): Promise<void>;
     updateProfile(username: string, bio: string): Promise<void>;
     uploadImage(title: string, tags: Array<string>, aspectClass: string, blobId: ExternalBlob): Promise<void>;
 }

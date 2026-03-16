@@ -89,6 +89,15 @@ export class ExternalBlob {
         return this;
     }
 }
+export interface Album {
+    id: bigint;
+    owner: Principal;
+    name: string;
+    description: string;
+    imageIds: Array<bigint>;
+    passwordHash: string;
+    isPublic: boolean;
+}
 export interface PublicUserProfile {
     bio: string;
     username: string;
@@ -129,6 +138,12 @@ export interface _CaffeineStorageCreateCertificateResult {
     method: string;
     blob_hash: string;
 }
+export interface AlbumInput {
+    password: string;
+    name: string;
+    description: string;
+    isPublic: boolean;
+}
 export interface UserProfile {
     bio: string;
     username: string;
@@ -152,10 +167,14 @@ export interface backendInterface {
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     addComment(imageId: bigint, text: string): Promise<void>;
     addFavorite(imageId: bigint): Promise<void>;
+    addImageToAlbum(albumId: bigint, imageId: bigint): Promise<void>;
     approveImage(imageId: bigint): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     changeRole(userId: Principal, newRole: UserRole): Promise<void>;
+    createAlbum(input: AlbumInput): Promise<bigint>;
+    deleteAlbum(albumId: bigint): Promise<void>;
     deleteImage(imageId: bigint): Promise<void>;
+    getAlbum(albumId: bigint, password: string): Promise<Album>;
     getAllUsers(): Promise<Array<User>>;
     getCallerProfile(): Promise<User>;
     getCallerUserProfile(): Promise<UserProfile | null>;
@@ -164,8 +183,10 @@ export interface backendInterface {
     getFavorites(): Promise<Array<bigint>>;
     getImage(imageId: bigint): Promise<Image>;
     getPendingReview(): Promise<Array<Image>>;
+    getPublicAlbums(): Promise<Array<Album>>;
     getPublicGallery(): Promise<Array<Image>>;
     getPublicUserProfile(user: Principal): Promise<PublicUserProfile | null>;
+    getUserAlbums(user: Principal): Promise<Array<Album>>;
     getUserImages(user: Principal): Promise<Array<Image>>;
     getUserLikedImages(): Promise<Array<bigint>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
@@ -176,8 +197,10 @@ export interface backendInterface {
     registerUser(username: string, bio: string): Promise<void>;
     rejectImage(imageId: bigint): Promise<void>;
     removeFavorite(imageId: bigint): Promise<void>;
+    removeImageFromAlbum(albumId: bigint, imageId: bigint): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     unlikeImage(imageId: bigint): Promise<void>;
+    updateAlbum(albumId: bigint, input: AlbumInput): Promise<void>;
     updateProfile(username: string, bio: string): Promise<void>;
     uploadImage(title: string, tags: Array<string>, aspectClass: string, blobId: ExternalBlob): Promise<void>;
 }
@@ -310,6 +333,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async addImageToAlbum(arg0: bigint, arg1: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addImageToAlbum(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addImageToAlbum(arg0, arg1);
+            return result;
+        }
+    }
     async approveImage(arg0: bigint): Promise<void> {
         if (this.processError) {
             try {
@@ -352,6 +389,34 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async createAlbum(arg0: AlbumInput): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.createAlbum(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.createAlbum(arg0);
+            return result;
+        }
+    }
+    async deleteAlbum(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteAlbum(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteAlbum(arg0);
+            return result;
+        }
+    }
     async deleteImage(arg0: bigint): Promise<void> {
         if (this.processError) {
             try {
@@ -363,6 +428,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.deleteImage(arg0);
+            return result;
+        }
+    }
+    async getAlbum(arg0: bigint, arg1: string): Promise<Album> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAlbum(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAlbum(arg0, arg1);
             return result;
         }
     }
@@ -478,6 +557,20 @@ export class Backend implements backendInterface {
             return from_candid_vec_n19(this._uploadFile, this._downloadFile, result);
         }
     }
+    async getPublicAlbums(): Promise<Array<Album>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getPublicAlbums();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getPublicAlbums();
+            return result;
+        }
+    }
     async getPublicGallery(): Promise<Array<Image>> {
         if (this.processError) {
             try {
@@ -504,6 +597,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.getPublicUserProfile(arg0);
             return from_candid_opt_n20(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getUserAlbums(arg0: Principal): Promise<Array<Album>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getUserAlbums(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getUserAlbums(arg0);
+            return result;
         }
     }
     async getUserImages(arg0: Principal): Promise<Array<Image>> {
@@ -646,6 +753,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async removeImageFromAlbum(arg0: bigint, arg1: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.removeImageFromAlbum(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.removeImageFromAlbum(arg0, arg1);
+            return result;
+        }
+    }
     async saveCallerUserProfile(arg0: UserProfile): Promise<void> {
         if (this.processError) {
             try {
@@ -671,6 +792,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.unlikeImage(arg0);
+            return result;
+        }
+    }
+    async updateAlbum(arg0: bigint, arg1: AlbumInput): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateAlbum(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateAlbum(arg0, arg1);
             return result;
         }
     }

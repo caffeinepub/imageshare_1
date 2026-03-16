@@ -24,6 +24,21 @@ export const UserRole = IDL.Variant({
   'user' : IDL.Null,
   'guest' : IDL.Null,
 });
+export const AlbumInput = IDL.Record({
+  'password' : IDL.Text,
+  'name' : IDL.Text,
+  'description' : IDL.Text,
+  'isPublic' : IDL.Bool,
+});
+export const Album = IDL.Record({
+  'id' : IDL.Nat,
+  'owner' : IDL.Principal,
+  'name' : IDL.Text,
+  'description' : IDL.Text,
+  'imageIds' : IDL.Vec(IDL.Nat),
+  'passwordHash' : IDL.Text,
+  'isPublic' : IDL.Bool,
+});
 export const User = IDL.Record({
   'id' : IDL.Principal,
   'bio' : IDL.Text,
@@ -93,10 +108,14 @@ export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'addComment' : IDL.Func([IDL.Nat, IDL.Text], [], []),
   'addFavorite' : IDL.Func([IDL.Nat], [], []),
+  'addImageToAlbum' : IDL.Func([IDL.Nat, IDL.Nat], [], []),
   'approveImage' : IDL.Func([IDL.Nat], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'changeRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+  'createAlbum' : IDL.Func([AlbumInput], [IDL.Nat], []),
+  'deleteAlbum' : IDL.Func([IDL.Nat], [], []),
   'deleteImage' : IDL.Func([IDL.Nat], [], []),
+  'getAlbum' : IDL.Func([IDL.Nat, IDL.Text], [Album], ['query']),
   'getAllUsers' : IDL.Func([], [IDL.Vec(User)], ['query']),
   'getCallerProfile' : IDL.Func([], [User], ['query']),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
@@ -105,12 +124,14 @@ export const idlService = IDL.Service({
   'getFavorites' : IDL.Func([], [IDL.Vec(IDL.Nat)], ['query']),
   'getImage' : IDL.Func([IDL.Nat], [Image], ['query']),
   'getPendingReview' : IDL.Func([], [IDL.Vec(Image)], ['query']),
+  'getPublicAlbums' : IDL.Func([], [IDL.Vec(Album)], ['query']),
   'getPublicGallery' : IDL.Func([], [IDL.Vec(Image)], ['query']),
   'getPublicUserProfile' : IDL.Func(
       [IDL.Principal],
       [IDL.Opt(PublicUserProfile)],
       ['query'],
     ),
+  'getUserAlbums' : IDL.Func([IDL.Principal], [IDL.Vec(Album)], ['query']),
   'getUserImages' : IDL.Func([IDL.Principal], [IDL.Vec(Image)], ['query']),
   'getUserLikedImages' : IDL.Func([], [IDL.Vec(IDL.Nat)], ['query']),
   'getUserProfile' : IDL.Func(
@@ -125,8 +146,10 @@ export const idlService = IDL.Service({
   'registerUser' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'rejectImage' : IDL.Func([IDL.Nat], [], []),
   'removeFavorite' : IDL.Func([IDL.Nat], [], []),
+  'removeImageFromAlbum' : IDL.Func([IDL.Nat, IDL.Nat], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'unlikeImage' : IDL.Func([IDL.Nat], [], []),
+  'updateAlbum' : IDL.Func([IDL.Nat, AlbumInput], [], []),
   'updateProfile' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'uploadImage' : IDL.Func(
       [IDL.Text, IDL.Vec(IDL.Text), IDL.Text, ExternalBlob],
@@ -153,6 +176,21 @@ export const idlFactory = ({ IDL }) => {
     'admin' : IDL.Null,
     'user' : IDL.Null,
     'guest' : IDL.Null,
+  });
+  const AlbumInput = IDL.Record({
+    'password' : IDL.Text,
+    'name' : IDL.Text,
+    'description' : IDL.Text,
+    'isPublic' : IDL.Bool,
+  });
+  const Album = IDL.Record({
+    'id' : IDL.Nat,
+    'owner' : IDL.Principal,
+    'name' : IDL.Text,
+    'description' : IDL.Text,
+    'imageIds' : IDL.Vec(IDL.Nat),
+    'passwordHash' : IDL.Text,
+    'isPublic' : IDL.Bool,
   });
   const User = IDL.Record({
     'id' : IDL.Principal,
@@ -220,10 +258,14 @@ export const idlFactory = ({ IDL }) => {
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'addComment' : IDL.Func([IDL.Nat, IDL.Text], [], []),
     'addFavorite' : IDL.Func([IDL.Nat], [], []),
+    'addImageToAlbum' : IDL.Func([IDL.Nat, IDL.Nat], [], []),
     'approveImage' : IDL.Func([IDL.Nat], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'changeRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+    'createAlbum' : IDL.Func([AlbumInput], [IDL.Nat], []),
+    'deleteAlbum' : IDL.Func([IDL.Nat], [], []),
     'deleteImage' : IDL.Func([IDL.Nat], [], []),
+    'getAlbum' : IDL.Func([IDL.Nat, IDL.Text], [Album], ['query']),
     'getAllUsers' : IDL.Func([], [IDL.Vec(User)], ['query']),
     'getCallerProfile' : IDL.Func([], [User], ['query']),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
@@ -232,12 +274,14 @@ export const idlFactory = ({ IDL }) => {
     'getFavorites' : IDL.Func([], [IDL.Vec(IDL.Nat)], ['query']),
     'getImage' : IDL.Func([IDL.Nat], [Image], ['query']),
     'getPendingReview' : IDL.Func([], [IDL.Vec(Image)], ['query']),
+    'getPublicAlbums' : IDL.Func([], [IDL.Vec(Album)], ['query']),
     'getPublicGallery' : IDL.Func([], [IDL.Vec(Image)], ['query']),
     'getPublicUserProfile' : IDL.Func(
         [IDL.Principal],
         [IDL.Opt(PublicUserProfile)],
         ['query'],
       ),
+    'getUserAlbums' : IDL.Func([IDL.Principal], [IDL.Vec(Album)], ['query']),
     'getUserImages' : IDL.Func([IDL.Principal], [IDL.Vec(Image)], ['query']),
     'getUserLikedImages' : IDL.Func([], [IDL.Vec(IDL.Nat)], ['query']),
     'getUserProfile' : IDL.Func(
@@ -252,8 +296,10 @@ export const idlFactory = ({ IDL }) => {
     'registerUser' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'rejectImage' : IDL.Func([IDL.Nat], [], []),
     'removeFavorite' : IDL.Func([IDL.Nat], [], []),
+    'removeImageFromAlbum' : IDL.Func([IDL.Nat, IDL.Nat], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'unlikeImage' : IDL.Func([IDL.Nat], [], []),
+    'updateAlbum' : IDL.Func([IDL.Nat, AlbumInput], [], []),
     'updateProfile' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'uploadImage' : IDL.Func(
         [IDL.Text, IDL.Vec(IDL.Text), IDL.Text, ExternalBlob],

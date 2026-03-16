@@ -55,12 +55,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ExternalBlob } from "./backend";
 import type {
+  Album,
   Comment as BackendComment,
   Image as BackendImage,
   User as BackendUser,
   PublicUserProfile,
   backendInterface,
 } from "./backend";
+import { AddToAlbumButton, AlbumsTabContent } from "./components/AlbumFeatures";
+import { FilterSortBar } from "./components/FilterSortBar";
 import { useActor } from "./hooks/useActor";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
 
@@ -422,6 +425,7 @@ function ImageDetailDialog({
   onToggleFavorite,
   onLoginRequest,
   onUserClick,
+  userPrincipal,
 }: {
   image: BackendImage | null;
   onClose: () => void;
@@ -434,6 +438,7 @@ function ImageDetailDialog({
   onToggleFavorite: (id: bigint, currentlyFavorited: boolean) => void;
   onLoginRequest: () => void;
   onUserClick: (owner: string) => void;
+  userPrincipal?: string;
 }) {
   if (!image) return null;
   const imgUrl = image.blob.getDirectURL();
@@ -587,6 +592,15 @@ function ImageDetailDialog({
                 </Button>
               )}
             </div>
+            {isLoggedIn && userPrincipal && actor && (
+              <div className="flex justify-end mt-3">
+                <AddToAlbumButton
+                  imageId={image.id}
+                  actor={actor}
+                  principal={userPrincipal}
+                />
+              </div>
+            )}
 
             {actor && (
               <CommentSection
@@ -618,21 +632,25 @@ function GalleryPage({
   onUserClick: (owner: string) => void;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [filteredImages, setFilteredImages] = useState<BackendImage[]>(images);
 
-  const filtered = searchQuery
-    ? images.filter(
+  const searchFiltered = searchQuery
+    ? filteredImages.filter(
         (img) =>
           img.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
           img.tags.some((t) =>
             t.toLowerCase().includes(searchQuery.toLowerCase()),
           ),
       )
-    : images;
+    : filteredImages;
+
+  const filtered = searchFiltered;
 
   return (
     <>
       <HeroSection onSearch={setSearchQuery} />
       <main className="max-w-7xl mx-auto px-4 pb-16">
+        <FilterSortBar images={images} onFiltered={setFilteredImages} />
         <div className="flex items-center justify-between mb-6">
           <p className="text-muted-foreground font-body text-sm">
             {loading ? (
@@ -1109,6 +1127,9 @@ function ProfilePage({
     null,
   );
   const [userImages, setUserImages] = useState<BackendImage[]>([]);
+  const [filteredUserImages, setFilteredUserImages] = useState<BackendImage[]>(
+    [],
+  );
   const [favoriteImages, setFavoriteImages] = useState<BackendImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -1304,22 +1325,37 @@ function ProfilePage({
             >
               Favorites ({favoriteImages.length})
             </TabsTrigger>
+            <TabsTrigger
+              value="albums"
+              data-ocid="profile.tab"
+              className="font-body text-sm"
+            >
+              Albums
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="photos">
-            {userImages.length === 0 ? (
+            {userImages.length > 0 && (
+              <FilterSortBar
+                images={userImages}
+                onFiltered={setFilteredUserImages}
+              />
+            )}
+            {filteredUserImages.length === 0 ? (
               <div
                 data-ocid="profile.empty_state"
                 className="border border-dashed border-border/40 rounded-xl p-10 text-center"
               >
                 <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground opacity-40" />
                 <p className="font-body text-muted-foreground">
-                  You haven't uploaded any photos yet.
+                  {userImages.length === 0
+                    ? "You haven't uploaded any photos yet."
+                    : "No photos match the filter."}
                 </p>
               </div>
             ) : (
               <div className="columns-2 sm:columns-3 lg:columns-4 gap-3 space-y-3">
-                {userImages.map((img, i) => (
+                {filteredUserImages.map((img, i) => (
                   <ImageCard
                     key={String(img.id)}
                     image={img}
@@ -1354,6 +1390,14 @@ function ProfilePage({
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="albums">
+            <AlbumsTabContent
+              actor={actor}
+              principal={principal}
+              onImageOpen={onImageOpen}
+            />
           </TabsContent>
         </Tabs>
       </motion.div>
@@ -2257,6 +2301,9 @@ export default function App() {
         onToggleFavorite={handleToggleFavorite}
         onLoginRequest={handleLogin}
         onUserClick={handleViewUserProfile}
+        userPrincipal={
+          identity ? identity.getPrincipal().toString() : undefined
+        }
       />
 
       <Footer />
